@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-#$Id: winroute-report.pl, v 1.6.1, 2011/04/14 11:25 camilohe Exp camilohe$
+#$Id: winroute-report.pl, v 1.6.2, 2011/05/12 14:00 camilohe Exp camilohe$
 #
 # Copyright (c)2011 Camilo E. Hidalgo Estevez <camiloehe@gmail.com>. All rights reserved.
 # This program is free software; you can redistribute it and/or
@@ -64,6 +64,8 @@
 ##		+ Added Codes x Users reports.
 ##		+ Added Codes x Hosts reports.
 ##		+ Added filtering out second level items below mininum hits/size.
+##	1.6.2
+##		+ Better perldoc
 ##
 ##  License:
 ##  	This program is free software; you can redistribute it and/or modify it
@@ -1491,38 +1493,97 @@ winroute-report.pl  -- version? who knows or care!
 Processes winroute logs from a given folder and writes out an HTML file with a 
 report containing: 
 
-
 =over 2
 
-=item * the top users by visits.
+=item * Top Sites by Visits
 
-=item * the top users by size.
+=item * Top Sites by Size
 
-=item * the top N sites by visits.
+=item * Top Users by Visits
 
-=item * the top N sites by size.
+=item * Top Users by Size
 
-=item * the top N hosts (IP) by visits.
+=item * Top Hosts by Visits
 
-=item * the top N hosts (IP) by size.
+=item * Top Hosts by Size
 
-=item * the top N HTTP codes by visits.
+=item * Top Codes by Visits
 
-=item * the top N HTTP codes by size.
+=item * Top Codes by Size
+
+=item * Top Methods by Visits
+
+=item * Top Methods by Size
+
+=item * Top Sites/Users by Visits
+
+=item * Top Sites/Users by Size
+
+=item * Top Sites/Hosts by Visits
+
+=item * Top Sites/Hosts by Size
+
+=item * Top Sites/Codes by Visits
+
+=item * Top Sites/Codes by Size
+
+=item * Top Users/Sites by Visits
+
+=item * Top Users/Sites by Size
+
+=item * Top Users/Codes by Visits
+
+=item * Top Users/Codes by Size
+
+=item * Top Hosts/Sites by Visits
+
+=item * Top Hosts/Sites by Size
+
+=item * Top Hosts/Codes by Visits
+
+=item * Top Hosts/Codes by Size
+
+=item * Top Codes/Sites by Visits
+
+=item * Top Codes/Sites by Size
+
+=item * Top Codes/Users by Visits
+
+=item * Top Codes/Users by Size
+
+=item * Top Codes/Hosts by Visits
+
+=item * Top Codes/Hosts by Size
 
 =back
 
-Takes as a parameter the directory with winroute logs and optionally 
-the number of top sites to show (defaults to 25) and the file name of 
-the report (defaults to given log directory.html).
-
 =head1 USAGE
+
+=item winroute-report <logdir> [[N] reportfile]
+
+=over 2
+
+=item * logdir 
+
+The directory with winroute logs 
+
+=item * N
+
+The number of top items to show (defaults to 100) 
+
+=item * reportfile
+
+The file name of the report (defaults to logsdir.html).
+
+=back
+
+=head1 SAMPLES
 
 =over 2
 
 =item winroute-report trazas
 
-Parses log files in folder trazas and writes out the report to file trazas.thml including top 25 sites by default.
+Parses log files in folder trazas and writes out the report to file trazas.thml including top 100 sites by default.
 
 =item winroute-report trazas 50 report.html 
 
