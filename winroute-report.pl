@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-#$Id: winroute-report.pl, v 1.6.2, 2011/05/12 14:00 camilohe Exp camilohe$
+#$Id: winroute-report.pl, v 1.63, 2011/05/18 15:40 camilohe Exp camilohe$
 #
 # Copyright (c)2011 Camilo E. Hidalgo Estevez <camiloehe@gmail.com>. All rights reserved.
 # This program is free software; you can redistribute it and/or
@@ -65,7 +65,10 @@
 ##		+ Added Codes x Hosts reports.
 ##		+ Added filtering out second level items below mininum hits/size.
 ##	1.6.2
+##		+ Added Methods reports.
 ##		+ Better perldoc
+##	1.6.3
+##		+ Added Types reports.
 ##
 ##  License:
 ##  	This program is free software; you can redistribute it and/or modify it
@@ -91,6 +94,7 @@ my $cfgOutput =	"winroute-report.html";
 
 # debug anyone? -- from 0 to 9
 my $debug = 0;
+my $ver = "1.63";
 
 ##
 # Stop editing here unless you know what you're doing.
@@ -98,12 +102,15 @@ my $debug = 0;
 my $cfgDate = localtime; # gmtime;
 my ($ip, $minus, $user, $datetime, $timezone, $http_method, $url, $http_ver, $http_code, $http_size, $plus);
 my ($SortMethod, $row, $site_url, %sites, $dir, $file, $ItemsLeft, $SubItemsLeft);
-my (%users, $user_name, %hosts, $host_ip, %codes, $code, $method);
+my (%users, $user_name, %hosts, $host_ip, %codes, $code, $method, $type);
 my (%sitesxusers, %sitesxcodes, %sitesxhosts, %usersxsites, %usersxcodes, %hostsxsites, %hostsxcodes);
-my (%codesxsites, %codesxusers, %codesxhosts, %methods);
+my (%codesxsites, %codesxusers, %codesxhosts, %methods, %types, %typesxusers, %typesxhosts);
 
 $dir = $ARGV[0];
 if (!$dir) {print_usage();}
+if ($dir =~ m/[\/\-]\?/ ) {print_usage();}
+if ($dir =~ m/[\/\-][hH]/ ) {print_usage();}
+if ($dir =~ m/[\/\-][vV]/ ) {print_version();}
 
 $cfgNumberToShow = $ARGV[1] unless !$ARGV[1] ;
 print "cfgNumberToShow: $cfgNumberToShow \n" if ($debug) ;
@@ -207,6 +214,10 @@ while( defined( $file = readdir(DIR) ) )
 
 ##		$site_url = "$http_method $url";
 		$site_url = $url;
+
+		($type) = ($url =~ m{ (\.[A-Za-z0-9]+)$ }x );
+		$type =	"n/a" unless ($type);
+		print "  Type:$type\n" if ($debug>2);
 		
 		# Count method.
 		if (!$methods{$http_method})
@@ -215,13 +226,54 @@ while( defined( $file = readdir(DIR) ) )
 			print "  Found method:$http_method\n" if ($debug>1);
 		}
 		$methods{$http_method}->{count}++;
-
 		# Update method size. 
 		if (!$methods{$http_method}->{size})
 		{
 			$methods{$http_method}->{size} = 0;
 		}
 		$methods{$http_method}->{size} += $http_size;
+
+		# Count type.
+		if (!$types{$type})
+		{
+			$types{$type}->{count} = 0;
+			print "  Found type:$type\n" if ($debug>1);
+		}
+		$types{$type}->{count}++;
+		# Update type size. 
+		if (!$types{$type}->{size})
+		{
+			$types{$type}->{size} = 0;
+		}
+		$types{$type}->{size} += $http_size;
+
+		# Count type/user.
+		if (!$typesxusers{$type}{$user})
+		{
+			$typesxusers{$type}{$user}->{count} = 0;
+			print "  Found type/user:$type/$user\n" if ($debug>1);
+		}
+		$typesxusers{$type}{$user}->{count}++;
+		# Update type/user size. 
+		if (!$typesxusers{$type}{$user}->{size})
+		{
+			$typesxusers{$type}{$user}->{size} = 0;
+		}
+		$typesxusers{$type}{$user}->{size} += $http_size;
+
+		# Count type/host.
+		if (!$typesxhosts{$type}{$ip})
+		{
+			$typesxhosts{$type}{$ip}->{count} = 0;
+			print "  Found type/host:$type/$ip\n" if ($debug>1);
+		}
+		$typesxhosts{$type}{$ip}->{count}++;
+		# Update type/host size. 
+		if (!$typesxhosts{$type}{$ip}->{size})
+		{
+			$typesxhosts{$type}{$ip}->{size} = 0;
+		}
+		$typesxhosts{$type}{$ip}->{size} += $http_size;
 
 		# If hash already contains an entry for the exact site url.
 		if ($sites{$site_url})
@@ -532,6 +584,8 @@ print OUTPUT <<END;
 		<li>.<a href="#codes-size">Top Codes by Size</a></li>
 		<li>.<a href="#verbs-hits">Top Methods by Visits</a></li>
 		<li>.<a href="#verbs-size">Top Methods by Size</a></li>
+		<li>.<a href="#types-hits">Top Types by Visits</a></li>
+		<li>.<a href="#types-size">Top Types by Size</a></li>
 		<br/>
 		<li>.<a href="#sitesxusers-hits">Top Sites/Users by Visits</a></li>
 		<li>.<a href="#sitesxusers-size">Top Sites/Users by Size</a></li>
@@ -553,6 +607,10 @@ print OUTPUT <<END;
 		<li>.<a href="#codesxusers-size">Top Codes/Users by Size</a></li>
 		<li>.<a href="#codesxhosts-hits">Top Codes/Hosts by Visits</a></li>
 		<li>.<a href="#codesxhosts-size">Top Codes/Hosts by Size</a></li>
+		<li>.<a href="#typesxusers-hits">Top Types/Users by Visits</a></li>
+		<li>.<a href="#typesxusers-size">Top Types/Users by Size</a></li>
+		<li>.<a href="#typesxhosts-hits">Top Types/Hosts by Visits</a></li>
+		<li>.<a href="#typesxhosts-size">Top Types/Hosts by Size</a></li>
 	</ul>
 END
 
@@ -731,6 +789,38 @@ $SortMethod = "verbs_by_size_then_name";
 foreach $method ( sort ($SortMethod keys (%methods) ) )
 {
 	print OUTPUT "  <li>" . format_size($methods{$method}->{size}) . "<a href=\"#" . $method . "\">" . $method . "</a> (". $methods{$method}->{count} .")</li>\n" if ($methods{$method}->{size} > $cfgMinSize); 
+}
+
+print OUTPUT <<END;
+	</ul>
+	<h1><a name="types-hits">Top File Types by Visits</a></h1>
+	<ul>
+END
+
+##
+# Iterate through methods sorted by visits.
+##
+$ItemsLeft = $cfgNumberToShow;
+$SortMethod = "types_by_visits_then_name";
+foreach $type ( sort ($SortMethod keys (%types) ) )
+{
+	print OUTPUT "  <li>" . $types{$type}->{count} . "<a href=\"#" . $type . "\">" . $type . "</a> (". format_size($types{$type}->{size}) .")</li>\n" if ($types{$type}->{count} > $cfgMinHits); 
+}
+
+print OUTPUT <<END;
+	</ul>
+	<h1><a name="types-size">Top File Types by Size</a></h1>
+	<ul>
+END
+
+##
+# Iterate through methods sorted by size.
+##
+$ItemsLeft = $cfgNumberToShow;
+$SortMethod = "types_by_size_then_name";
+foreach $type ( sort ($SortMethod keys (%types) ) )
+{
+	print OUTPUT "  <li>" . format_size($types{$type}->{size}) . "<a href=\"#" . $type . "\">" . $type . "</a> (". $types{$type}->{count} .")</li>\n" if ($types{$type}->{size} > $cfgMinSize); 
 }
 
 print OUTPUT <<END;
@@ -1347,6 +1437,126 @@ foreach $code ( sort ($SortMethod keys (%codes) ) )
 	}
 }
 
+print OUTPUT <<END;
+	</ul>
+	<h1><a name="typesxusers-hits">Top $cfgNumberToShow File Types/Users by Visits</a></h1>
+	<ul>
+END
+
+##
+# Iterate through types sorted by visits.
+##
+$ItemsLeft = $cfgNumberToShow;
+$SortMethod = "types_by_visits_then_name";
+foreach $type ( sort ($SortMethod keys (%types) ) )
+{
+	# Only show top x entries.
+	if ($ItemsLeft > 0)
+	{
+		next unless ($types{$type}->{count} > $cfgMinHits);
+		print OUTPUT "	<li>" . $types{$type}->{count} . "<a href=\"#" . $type . "\">" . $type . "</a></li>\n";  
+		print OUTPUT "	<ul>\n"; 
+
+		foreach $user ( sort ( { $typesxusers{$type}{$b}->{count} <=> $typesxusers{$type}{$a}->{count} || $a cmp $b } keys ( %{ $typesxusers{$type} } ) ) )
+		{
+			next unless $typesxusers{$type}{$user}->{count} > $cfgMinHits;
+			print OUTPUT "	 <li>" . $typesxusers{$type}{$user}->{count} . "<a href=\"#" . $user . "/\">" . $user . "</a></li>\n";
+		}
+		print OUTPUT "	</ul>\n"; 
+		$ItemsLeft--;
+	}
+}
+
+print OUTPUT <<END;
+	</ul>
+	<h1><a name="typesxusers-size">Top $cfgNumberToShow File Types/Users by Size</a></h1>
+	<ul>
+END
+
+##
+# Iterate through codes sorted by size.
+##
+$ItemsLeft = $cfgNumberToShow;
+$SortMethod = "types_by_size_then_name";
+foreach $type ( sort ($SortMethod keys (%types) ) )
+{
+	# Only show top x entries.
+	if ($ItemsLeft > 0)
+	{
+		next unless ($types{$type}->{size} > $cfgMinSize);
+		print OUTPUT "	<li>" . format_size($types{$type}->{size}) . "<a href=\"#" . $type . "\">" . $type . "</a></li>\n"; 
+		print OUTPUT "	<ul>\n"; 
+		
+		foreach $user ( sort ( { $typesxusers{$type}{$b}->{size} <=> $typesxusers{$type}{$a}->{size} || $a cmp $b } keys ( %{ $typesxusers{$type} } ) ) )
+		{
+			next unless $typesxusers{$type}{$user}->{size} > $cfgMinSize;
+			print OUTPUT "    <li>" . format_size($typesxusers{$type}{$user}->{size}) . "<a href=\"#" . $user . "/\">" . $user . "</a></li>\n"; 
+		}
+		print OUTPUT "	</ul>\n"; 
+		$ItemsLeft--;
+	}
+}
+
+print OUTPUT <<END;
+	</ul>
+	<h1><a name="typesxhosts-hits">Top $cfgNumberToShow File Types/Hosts (IPs) by Visits</a></h1>
+	<ul>
+END
+
+##
+# Iterate through types sorted by visits.
+##
+$ItemsLeft = $cfgNumberToShow;
+$SortMethod = "types_by_visits_then_name";
+foreach $type ( sort ($SortMethod keys (%types) ) )
+{
+	# Only show top x entries.
+	if ($ItemsLeft > 0)
+	{
+		next unless ($types{$type}->{count} > $cfgMinHits);
+		print OUTPUT "	<li>" . $types{$type}->{count} . "<a href=\"#" . $type . "\">" . $type . "</a></li>\n";  
+		print OUTPUT "	<ul>\n"; 
+
+		foreach $host_ip ( sort ( { $typesxhosts{$type}{$b}->{count} <=> $typesxhosts{$type}{$a}->{count} || $a cmp $b } keys ( %{ $typesxhosts{$type} } ) ) )
+		{
+			next unless $typesxhosts{$type}{$host_ip}->{count} > $cfgMinHits;
+			print OUTPUT "	  <li>" . $typesxhosts{$type}{$host_ip}->{count} . "<a href=\"#" . $host_ip . "/\">" . $host_ip . "</a></li>\n";
+		}
+		print OUTPUT "	</ul>\n"; 
+		$ItemsLeft--;
+	}
+}
+
+print OUTPUT <<END;
+	</ul>
+	<h1><a name="typesxhosts-size">Top $cfgNumberToShow File Types/Hosts (IPs) by Size</a></h1>
+	<ul>
+END
+
+##
+# Iterate through types sorted by size.
+##
+$ItemsLeft = $cfgNumberToShow;
+$SortMethod = "types_by_size_then_name";
+foreach $type ( sort ($SortMethod keys (%types) ) )
+{
+	# Only show top x entries.
+	if ($ItemsLeft > 0)
+	{
+		next unless ($types{$type}->{size} > $cfgMinSize);
+		print OUTPUT "	<li>" . format_size($types{$type}->{size}) . "<a href=\"#" . $type . "\">" . $type . "</a></li>\n"; 
+		print OUTPUT "	<ul>\n"; 
+		
+		foreach $host_ip ( sort ( { $typesxhosts{$type}{$b}->{size} <=> $typesxhosts{$type}{$a}->{size} || $a cmp $b } keys ( %{ $typesxhosts{$type} } ) ) )
+		{
+			next unless $typesxhosts{$type}{$host_ip}->{size} > $cfgMinSize;
+			print OUTPUT "    <li>" . format_size($typesxhosts{$type}{$host_ip}->{size}) . "<a href=\"#" . $host_ip . "/\">" . $host_ip . "</a></li>\n"; 
+		}
+		print OUTPUT "	</ul>\n"; 
+		$ItemsLeft--;
+	}
+}
+
 ##
 # Print Footer HTML
 ##
@@ -1453,6 +1663,23 @@ sub verbs_by_size_then_name {
 	$a cmp $b;
 }
 
+##
+# Sort types by frequency visited, then alphabetically.
+##
+sub types_by_visits_then_name {
+	$types{$b}->{count} <=> $types{$a}->{count} 
+		||
+	$a cmp $b;
+}
+##
+# Sort types by size, then alphabetically.
+##
+sub types_by_size_then_name {
+	$types{$b}->{size} <=> $types{$a}->{size} 
+		||
+	$a cmp $b;
+}
+
 
 sub print_usage {
 	print "Usage: $0 dir [n] [file] \n";
@@ -1460,6 +1687,11 @@ sub print_usage {
 	print "    dir  - the directory with winroute log files\n";
 	print "    n    - show only the top n items.\n";
 	print "    file - the file name to store the HTML report\n";
+	exit();
+}
+
+sub print_version {
+	print "$0 version: $ver";
 	exit();
 }
 
@@ -1484,7 +1716,7 @@ __END__
 
 =head1 NAME
 
-winroute-report.pl  -- version? who knows or care!
+winroute-report.pl  -- a winroute proxy log analizer
 
 
 =head1 DESCRIPTION
@@ -1514,6 +1746,10 @@ report containing:
 =item * Top Methods by Visits
 
 =item * Top Methods by Size
+
+=item * Top Types by Visits
+
+=item * Top Types by Size
 
 =item * Top Sites/Users by Visits
 
