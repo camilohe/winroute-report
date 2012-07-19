@@ -178,8 +178,8 @@ while( defined( $file = readdir(DIR) ) )
 			next;
 		};
 
-		# If the user is invalid (which occurs occasionally in my logs, no idea
-		# why, then don't add it to the list.
+		# If the user is invalid (which occurs occasionally in my logs, no idea why),
+		# then don't add it to the list.
 		if ($user !~ m/^[a-zA-Z-]+$/) 
 		{
 			print "  Bad user:$user\n" if ($debug>1);
@@ -190,7 +190,7 @@ while( defined( $file = readdir(DIR) ) )
 		}
 
 		# If the size is non numeric (which also occurs occasionally in my logs, no idea
-		# why, then don't add it to the list.
+		# why), then don't add it to the list.
 		if ($http_size !~ m/^[0-9]+$/ )
 		{
 			print "  Bad size:$http_size\n" if ($debug>1);
