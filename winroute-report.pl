@@ -1,17 +1,17 @@
 #!/usr/bin/perl -w
 #
-#$Id: winroute-report.pl, v 1.63, 2011/05/18 15:40 camilohe Exp camilohe$
+#$Id: winroute-report.pl, v 1.64, 2012/07/19 12:28 camilohe Exp camilohe$
 #
 # Copyright (c)2011 Camilo E. Hidalgo Estevez <camiloehe@gmail.com>. All rights reserved.
 # This program is free software; you can redistribute it and/or
 # modify it under the GNU General Public License
 
 ##
-##  Winroute Top Users, Sites reporting script.
+##  Winroute Top Users, Pages reporting script.
 ## 
 ##  Description:
 ##	This script will parse the specified Winroute logfile and generate an HTML
-##	report with top users/sites by visits/size.
+##	report with top users/pages by visits/size.
 ##
 ##  Author:
 ##	Dave Hope  - http://davehope.co.uk (Author of top-sites-size.pl)
@@ -26,7 +26,7 @@
 ##		+ Changed code to parse winroute log format. 
 ##		+ Removed content type checks (content-type field is not available).		
 ##	1.0.2
-##		+ Fixed issue with accessing on ports other than 80 (handle :port in site url).
+##		+ Fixed issue with accessing on ports other than 80 (handle :port in page url).
 ##		+ Fixed problem with https:// entries in log.
 ##	1.1.0
 ##		+ Added users reports.
@@ -41,15 +41,15 @@
 ##	1.2.1
 ##		+ Added HTTP codes reports.
 ##	1.3.0
-##		+ Added HTTP codes x Sites reports.
+##		+ Added HTTP codes x Pages reports.
 ##	1.3.1
-##		+ Added Users x Sites reports.
-##		+ Added Sites x Users reports.
+##		+ Added Users x Pages reports.
+##		+ Added Pages x Users reports.
 ##	1.3.2
-##		+ Added Hosts (IPs)/Sites reports.
+##		+ Added Hosts (IPs)/Pages reports.
 ##	1.4.0
-##		+ Added Sites x Hosts reports.
-##		+ Added Sites x Codes reports.
+##		+ Added Pages x Hosts reports.
+##		+ Added Pages x Codes reports.
 ##	1.4.1
 ##		+ Added Available Reports.
 ##	1.5.0
@@ -69,6 +69,8 @@
 ##		+ Better perldoc
 ##	1.6.3
 ##		+ Added Types reports.
+##	1.6.4
+##		+ Replaced sites by pages and a few minor changes.
 ##
 ##  License:
 ##  	This program is free software; you can redistribute it and/or modify it
@@ -101,10 +103,10 @@ my $ver = "1.63";
 ##
 my $cfgDate = localtime; # gmtime;
 my ($ip, $minus, $user, $datetime, $timezone, $http_method, $url, $http_ver, $http_code, $http_size, $plus);
-my ($SortMethod, $row, $site_url, %sites, $dir, $file, $ItemsLeft, $SubItemsLeft);
+my ($SortMethod, $row, $page_url, %pages, $dir, $file, $ItemsLeft, $SubItemsLeft);
 my (%users, $user_name, %hosts, $host_ip, %codes, $code, $method, $type);
-my (%sitesxusers, %sitesxcodes, %sitesxhosts, %usersxsites, %usersxcodes, %hostsxsites, %hostsxcodes);
-my (%codesxsites, %codesxusers, %codesxhosts, %methods, %types, %typesxusers, %typesxhosts);
+my (%pagesxusers, %pagesxcodes, %pagesxhosts, %usersxpages, %usersxcodes, %hostsxpages, %hostsxcodes);
+my (%codesxpages, %codesxusers, %codesxhosts, %methods, %types, %typesxusers, %typesxhosts);
 
 $dir = $ARGV[0];
 if (!$dir) {print_usage();}
@@ -183,7 +185,7 @@ while( defined( $file = readdir(DIR) ) )
 		if ($user !~ m/^[a-zA-Z-]+$/) 
 		{
 			print "  Bad user:$user\n" if ($debug>1);
-			print "    IP: $ip, Site: $site_url, Code: $http_code, Size: $http_size\n" if ($debug>2);
+			print "    IP: $ip, Page: $page_url, Code: $http_code, Size: $http_size\n" if ($debug>2);
 			print "    Row: $row\n" if ($debug>3);
 			$bad_lines++;
 			next;
@@ -194,7 +196,7 @@ while( defined( $file = readdir(DIR) ) )
 		if ($http_size !~ m/^[0-9]+$/ )
 		{
 			print "  Bad size:$http_size\n" if ($debug>1);
-			print "    IP: $ip, Site: $site_url, Code: $http_code, Size: $http_size\n" if ($debug>2);
+			print "    IP: $ip, Page: $page_url, Code: $http_code, Size: $http_size\n" if ($debug>2);
 			print "    Row: $row\n" if ($debug>3);
 			$bad_lines++;
 			next;
@@ -206,14 +208,14 @@ while( defined( $file = readdir(DIR) ) )
 
 		# Match what is between the second slash and the first question mark or non allowed 
 		# character or to the end -- I think ;-) 
-##		($site_url) = ($url =~ m{ ([A-Za-z0-9\.\-\:\/\_\%]+) }x );
-##		($site_url) = ($url =~ m{ ([A-Za-z0-9\.\-\:\/\_\%\?\&\+\;]+) }x );
+##		($page_url) = ($url =~ m{ ([A-Za-z0-9\.\-\:\/\_\%]+) }x );
+##		($page_url) = ($url =~ m{ ([A-Za-z0-9\.\-\:\/\_\%\?\&\+\;]+) }x );
 
 		# Remove leading " from http method 
 		$http_method =~ s/\"//;
 
-##		$site_url = "$http_method $url";
-		$site_url = $url;
+##		$page_url = "$http_method $url";
+		$page_url = $url;
 
 		($type) = ($url =~ m{ (\.[A-Za-z0-9]+)$ }x );
 		$type =	"n/a" unless ($type);
@@ -275,77 +277,77 @@ while( defined( $file = readdir(DIR) ) )
 		}
 		$typesxhosts{$type}{$ip}->{size} += $http_size;
 
-		# If hash already contains an entry for the exact site url.
-		if ($sites{$site_url})
+		# If hash already contains an entry for the exact page url.
+		if ($pages{$page_url})
 		{
-			 $sites{$site_url}->{count}++;
+			 $pages{$page_url}->{count}++;
 		}
 		# If no matching entry exists, create one.
 		else
 		{
-			$sites{$site_url}->{count} = 1;
-			print "  Found site:$site_url\n" if ($debug>1);
+			$pages{$page_url}->{count} = 1;
+			print "  Found page:$page_url\n" if ($debug>1);
 		}
-		# Update size of content for website regardless of content-type.
-		if (!$sites{$site_url}->{size})
+		# Update size of content for webpage regardless of content-type.
+		if (!$pages{$page_url}->{size})
 		{
-			$sites{$site_url}->{size} = 0;
+			$pages{$page_url}->{size} = 0;
 		}
-		$sites{$site_url}->{size} = $sites{$site_url}->{size} + $http_size;
+		$pages{$page_url}->{size} = $pages{$page_url}->{size} + $http_size;
 
-		# If hash already contains an entry for the exact site url/user.
-		if ($sitesxusers{$site_url}{$user})
+		# If hash already contains an entry for the exact page url/user.
+		if ($pagesxusers{$page_url}{$user})
 		{
-			 $sitesxusers{$site_url}{$user}->{count}++;
+			 $pagesxusers{$page_url}{$user}->{count}++;
 		}
 		# If no matching entry exists, create one.
 		else
 		{
-			$sitesxusers{$site_url}{$user}->{count} = 1;
-			print "  Found site/user:$site_url/$user\n" if ($debug>1);
+			$pagesxusers{$page_url}{$user}->{count} = 1;
+			print "  Found page/user:$page_url/$user\n" if ($debug>1);
 		}
-		# Update size of content for website/user regardless of content-type.
-		if (!$sitesxusers{$site_url}{$user}->{size})
+		# Update size of content for webpage/user regardless of content-type.
+		if (!$pagesxusers{$page_url}{$user}->{size})
 		{
-			$sitesxusers{$site_url}{$user}->{size} = 0;
+			$pagesxusers{$page_url}{$user}->{size} = 0;
 		}
-		$sitesxusers{$site_url}{$user}->{size} = $sitesxusers{$site_url}{$user}->{size} + $http_size;
+		$pagesxusers{$page_url}{$user}->{size} = $pagesxusers{$page_url}{$user}->{size} + $http_size;
 
-		# If hash already contains an entry for the exact site url/code.
-		if ($sitesxcodes{$site_url}{$http_code})
+		# If hash already contains an entry for the exact page url/code.
+		if ($pagesxcodes{$page_url}{$http_code})
 		{
-			 $sitesxcodes{$site_url}{$http_code}->{count}++;
+			 $pagesxcodes{$page_url}{$http_code}->{count}++;
 		}
 		# If no matching entry exists, create one.
 		else
 		{
-			$sitesxcodes{$site_url}{$http_code}->{count} = 1;
-			print "  Found site/code:$site_url/$http_code\n" if ($debug>1);
+			$pagesxcodes{$page_url}{$http_code}->{count} = 1;
+			print "  Found page/code:$page_url/$http_code\n" if ($debug>1);
 		}
-		# Update size of content for website/code regardless of content-type.
-		if (!$sitesxcodes{$site_url}{$http_code}->{size})
+		# Update size of content for webpage/code regardless of content-type.
+		if (!$pagesxcodes{$page_url}{$http_code}->{size})
 		{
-			$sitesxcodes{$site_url}{$http_code}->{size} = 0;
+			$pagesxcodes{$page_url}{$http_code}->{size} = 0;
 		}
-		$sitesxcodes{$site_url}{$http_code}->{size} = $sitesxcodes{$site_url}{$http_code}->{size} + $http_size;
+		$pagesxcodes{$page_url}{$http_code}->{size} = $pagesxcodes{$page_url}{$http_code}->{size} + $http_size;
 
-		# If hash already contains an entry for the exact site url/host.
-		if ($sitesxhosts{$site_url}{$ip})
+		# If hash already contains an entry for the exact page url/host.
+		if ($pagesxhosts{$page_url}{$ip})
 		{
-			 $sitesxhosts{$site_url}{$ip}->{count}++;
+			 $pagesxhosts{$page_url}{$ip}->{count}++;
 		}
 		# If no matching entry exists, create one.
 		else
 		{
-			$sitesxhosts{$site_url}{$ip}->{count} = 1;
-			print "  Found site/host:$site_url/$ip\n" if ($debug>1);
+			$pagesxhosts{$page_url}{$ip}->{count} = 1;
+			print "  Found page/host:$page_url/$ip\n" if ($debug>1);
 		}
-		# Update size of content for website/code regardless of content-type.
-		if (!$sitesxhosts{$site_url}{$ip}->{size})
+		# Update size of content for webpage/code regardless of content-type.
+		if (!$pagesxhosts{$page_url}{$ip}->{size})
 		{
-			$sitesxhosts{$site_url}{$ip}->{size} = 0;
+			$pagesxhosts{$page_url}{$ip}->{size} = 0;
 		}
-		$sitesxhosts{$site_url}{$ip}->{size} = $sitesxhosts{$site_url}{$ip}->{size} + $http_size;
+		$pagesxhosts{$page_url}{$ip}->{size} = $pagesxhosts{$page_url}{$ip}->{size} + $http_size;
 
 		# If hash already contains an entry for the user.
 		if ($users{$user})
@@ -365,23 +367,23 @@ while( defined( $file = readdir(DIR) ) )
 		}
 		$users{$user}->{size} = $users{$user}->{size} + $http_size;
 
-		# If hash already contains an entry for the user/site.
-		if ($usersxsites{$user}{$site_url})
+		# If hash already contains an entry for the user/page.
+		if ($usersxpages{$user}{$page_url})
 		{
-			 $usersxsites{$user}{$site_url}->{count}++;
+			 $usersxpages{$user}{$page_url}->{count}++;
 		}
 		# If no matching entry exists, create one.
 		else
 		{
-			$usersxsites{$user}{$site_url}->{count} = 1;
-			print "  Found user/site:$user/$site_url\n" if ($debug);
+			$usersxpages{$user}{$page_url}->{count} = 1;
+			print "  Found user/page:$user/$page_url\n" if ($debug);
 		}
-		# Update size for user/site.
-		if (!$usersxsites{$user}{$site_url}->{size})
+		# Update size for user/page.
+		if (!$usersxpages{$user}{$page_url}->{size})
 		{
-			$usersxsites{$user}{$site_url}->{size} = 0;
+			$usersxpages{$user}{$page_url}->{size} = 0;
 		}
-		$usersxsites{$user}{$site_url}->{size} = $usersxsites{$user}{$site_url}->{size} + $http_size;
+		$usersxpages{$user}{$page_url}->{size} = $usersxpages{$user}{$page_url}->{size} + $http_size;
 
 		# If hash already contains an entry for the user/code.
 		if ($usersxcodes{$user}{$http_code})
@@ -419,23 +421,23 @@ while( defined( $file = readdir(DIR) ) )
 		}
 		$hosts{$ip}->{size} = $hosts{$ip}->{size} + $http_size;
 
-		# If hash already contains an entry for the host/site.
-		if ($hostsxsites{$ip}{$site_url})
+		# If hash already contains an entry for the host/page.
+		if ($hostsxpages{$ip}{$page_url})
 		{
-			 $hostsxsites{$ip}{$site_url}->{count}++;
+			 $hostsxpages{$ip}{$page_url}->{count}++;
 		}
 		# If no matching entry exists, create one.
 		else
 		{
-			$hostsxsites{$ip}{$site_url}->{count} = 1;
-			print "  Found host/site:$ip/$site_url\n" if ($debug);
+			$hostsxpages{$ip}{$page_url}->{count} = 1;
+			print "  Found host/page:$ip/$page_url\n" if ($debug);
 		}
-		# Update size for host/site.
-		if (!$hostsxsites{$ip}{$site_url}->{size})
+		# Update size for host/page.
+		if (!$hostsxpages{$ip}{$page_url}->{size})
 		{
-			$hostsxsites{$ip}{$site_url}->{size} = 0;
+			$hostsxpages{$ip}{$page_url}->{size} = 0;
 		}
-		$hostsxsites{$ip}{$site_url}->{size} = $hostsxsites{$ip}{$site_url}->{size} + $http_size;
+		$hostsxpages{$ip}{$page_url}->{size} = $hostsxpages{$ip}{$page_url}->{size} + $http_size;
 
 		# If hash already contains an entry for the host/code.
 		if ($hostsxcodes{$ip}{$http_code})
@@ -473,23 +475,23 @@ while( defined( $file = readdir(DIR) ) )
 		}
 		$codes{$http_code}->{size} = $codes{$http_code}->{size} + $http_size;
 		
-		# If hash already contains an entry for the code/site.
-		if ($codesxsites{$http_code}{$site_url})
+		# If hash already contains an entry for the code/page.
+		if ($codesxpages{$http_code}{$page_url})
 		{
-			 $codesxsites{$http_code}{$site_url}->{count}++;
+			 $codesxpages{$http_code}{$page_url}->{count}++;
 		}
 		# If no matching entry exists, create one.
 		else
 		{
-			$codesxsites{$http_code}{$site_url}->{count} = 1;
-			print "  Found code/site:$http_code/$site_url\n" if ($debug);
+			$codesxpages{$http_code}{$page_url}->{count} = 1;
+			print "  Found code/page:$http_code/$page_url\n" if ($debug);
 		}
-		# Update size for code/site.
-		if (!$codesxsites{$http_code}{$site_url}->{size})
+		# Update size for code/page.
+		if (!$codesxpages{$http_code}{$page_url}->{size})
 		{
-			$codesxsites{$http_code}{$site_url}->{size} = 0;
+			$codesxpages{$http_code}{$page_url}->{size} = 0;
 		}
-		$codesxsites{$http_code}{$site_url}->{size} = $codesxsites{$http_code}{$site_url}->{size} + $http_size;
+		$codesxpages{$http_code}{$page_url}->{size} = $codesxpages{$http_code}{$page_url}->{size} + $http_size;
 		
 		# If hash already contains an entry for the code/user.
 		if ($codesxusers{$http_code}{$user})
@@ -502,7 +504,7 @@ while( defined( $file = readdir(DIR) ) )
 			$codesxusers{$http_code}{$user}->{count} = 1;
 			print "  Found code/user:$http_code/$user\n" if ($debug);
 		}
-		# Update size for code/site.
+		# Update size for code/page.
 		if (!$codesxusers{$http_code}{$user}->{size})
 		{
 			$codesxusers{$http_code}{$user}->{size} = 0;
@@ -520,7 +522,7 @@ while( defined( $file = readdir(DIR) ) )
 			$codesxhosts{$http_code}{$ip}->{count} = 1;
 			print "  Found code/host:$http_code/$ip\n" if ($debug);
 		}
-		# Update size for code/site.
+		# Update size for code/page.
 		if (!$codesxhosts{$http_code}{$ip}->{size})
 		{
 			$codesxhosts{$http_code}{$ip}->{size} = 0;
@@ -550,7 +552,7 @@ print OUTPUT <<END;
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 	<head profile="http://gmpg.org/xfn/11">
-		<title>Winroute Top Users and Sites Report</title>
+		<title>Winroute Top Users and Pages Report</title>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 		<style type="text/css">
 		<!--
@@ -567,15 +569,15 @@ print OUTPUT <<END;
 END
 
 print OUTPUT <<END;
-	<h1>Winroute Top Users and Sites Report</h1>
+	<h1>Winroute Top Users and Pages Report</h1>
 	<p id="Generated">Report generated on $cfgDate</p>
 END
 
 print OUTPUT <<END;
 	<h1>Available Reports</h1>
 	<ul>
-		<li>.<a href="#sites-hits">Top Sites by Visits</a></li>
-		<li>.<a href="#sites-size">Top Sites by Size</a></li>
+		<li>.<a href="#pages-hits">Top Pages by Visits</a></li>
+		<li>.<a href="#pages-size">Top Pages by Size</a></li>
 		<li>.<a href="#users-hits">Top Users by Visits</a></li>
 		<li>.<a href="#users-size">Top Users by Size</a></li>
 		<li>.<a href="#hosts-hits">Top Hosts by Visits</a></li>
@@ -587,22 +589,22 @@ print OUTPUT <<END;
 		<li>.<a href="#types-hits">Top Types by Visits</a></li>
 		<li>.<a href="#types-size">Top Types by Size</a></li>
 		<br/>
-		<li>.<a href="#sitesxusers-hits">Top Sites/Users by Visits</a></li>
-		<li>.<a href="#sitesxusers-size">Top Sites/Users by Size</a></li>
-		<li>.<a href="#sitesxhosts-hits">Top Sites/Hosts by Visits</a></li>
-		<li>.<a href="#sitesxhosts-size">Top Sites/Hosts by Size</a></li>
-		<li>.<a href="#sitesxcodes-hits">Top Sites/Codes by Visits</a></li>
-		<li>.<a href="#sitesxcodes-size">Top Sites/Codes by Size</a></li>
-		<li>.<a href="#usersxsites-hits">Top Users/Sites by Visits</a></li>
-		<li>.<a href="#usersxsites-size">Top Users/Sites by Size</a></li>
+		<li>.<a href="#pagesxusers-hits">Top Pages/Users by Visits</a></li>
+		<li>.<a href="#pagesxusers-size">Top Pages/Users by Size</a></li>
+		<li>.<a href="#pagesxhosts-hits">Top Pages/Hosts by Visits</a></li>
+		<li>.<a href="#pagesxhosts-size">Top Pages/Hosts by Size</a></li>
+		<li>.<a href="#pagesxcodes-hits">Top Pages/Codes by Visits</a></li>
+		<li>.<a href="#pagesxcodes-size">Top Pages/Codes by Size</a></li>
+		<li>.<a href="#usersxpages-hits">Top Users/Pages by Visits</a></li>
+		<li>.<a href="#usersxpages-size">Top Users/Pages by Size</a></li>
 		<li>.<a href="#usersxcodes-hits">Top Users/Codes by Visits</a></li>
 		<li>.<a href="#usersxcodes-size">Top Users/Codes by Size</a></li>
-		<li>.<a href="#hostsxsites-hits">Top Hosts/Sites by Visits</a></li>
-		<li>.<a href="#hostsxsites-size">Top Hosts/Sites by Size</a></li>
+		<li>.<a href="#hostsxpages-hits">Top Hosts/Pages by Visits</a></li>
+		<li>.<a href="#hostsxpages-size">Top Hosts/Pages by Size</a></li>
 		<li>.<a href="#hostsxcodes-hits">Top Hosts/Codes by Visits</a></li>
 		<li>.<a href="#hostsxcodes-size">Top Hosts/Codes by Size</a></li>
-		<li>.<a href="#codesxsites-hits">Top Codes/Sites by Visits</a></li>
-		<li>.<a href="#codesxsites-size">Top Codes/Sites by Size</a></li>
+		<li>.<a href="#codesxpages-hits">Top Codes/Pages by Visits</a></li>
+		<li>.<a href="#codesxpages-size">Top Codes/Pages by Size</a></li>
 		<li>.<a href="#codesxusers-hits">Top Codes/Users by Visits</a></li>
 		<li>.<a href="#codesxusers-size">Top Codes/Users by Size</a></li>
 		<li>.<a href="#codesxhosts-hits">Top Codes/Hosts by Visits</a></li>
@@ -615,42 +617,42 @@ print OUTPUT <<END;
 END
 
 print OUTPUT <<END;
-	<h1><a name="sites-hits">Top $cfgNumberToShow Sites by Visits</a></h1>
+	<h1><a name="pages-hits">Top $cfgNumberToShow Pages by Visits</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites sorted by visits.
+# Iterate through pages sorted by visits.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_visits_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_visits_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		print OUTPUT "	<li>" . $sites{$site_url}->{count} . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a> (". format_size($sites{$site_url}->{size}) .")</li>\n" if ($sites{$site_url}->{count} > $cfgMinHits);
+		print OUTPUT "	<li>" . $pages{$page_url}->{count} . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a> (". format_size($pages{$page_url}->{size}) .")</li>\n" if ($pages{$page_url}->{count} > $cfgMinHits);
 		$ItemsLeft--;
 	}
 }
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="sites-size">Top $cfgNumberToShow Sites by Size</a></h1>
+	<h1><a name="pages-size">Top $cfgNumberToShow Pages by Size</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites sorted by size.
+# Iterate through pages sorted by size.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_size_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_size_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		print OUTPUT "  <li>" . format_size($sites{$site_url}->{size}) . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a> (". $sites{$site_url}->{count} .")</li>\n" if ($sites{$site_url}->{size} > $cfgMinSize);
+		print OUTPUT "  <li>" . format_size($pages{$page_url}->{size}) . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a> (". $pages{$page_url}->{count} .")</li>\n" if ($pages{$page_url}->{size} > $cfgMinSize);
 		$ItemsLeft--;
 	}
 }
@@ -825,28 +827,28 @@ foreach $type ( sort ($SortMethod keys (%types) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="sitesxusers-hits">Top $cfgNumberToShow Sites/Users by Visits</a></h1>
+	<h1><a name="pagesxusers-hits">Top $cfgNumberToShow Pages/Users by Visits</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites/users sorted by visits.
+# Iterate through pages/users sorted by visits.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_visits_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_visits_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		next unless ($sites{$site_url}->{count} > $cfgMinHits);
-		print OUTPUT "	<li>" . $sites{$site_url}->{count} . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+		next unless ($pages{$page_url}->{count} > $cfgMinHits);
+		print OUTPUT "	<li>" . $pages{$page_url}->{count} . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 		print OUTPUT "	<ul>\n"; 
 
-		foreach $user_name ( sort ( { $sitesxusers{$site_url}{$b}->{count} <=> $sitesxusers{$site_url}{$a}->{count} || $a cmp $b} keys ( %{ $sitesxusers{$site_url} } ) ) )
+		foreach $user_name ( sort ( { $pagesxusers{$page_url}{$b}->{count} <=> $pagesxusers{$page_url}{$a}->{count} || $a cmp $b} keys ( %{ $pagesxusers{$page_url} } ) ) )
 		{
-			next unless $sitesxusers{$site_url}{$user_name}->{count} > $cfgMinHits;
-			print OUTPUT "    <li>" . $sitesxusers{$site_url}{$user_name}->{count} . "<a href=\"#" . $user_name . "\">" . $user_name . "</a></li>\n"; 
+			next unless $pagesxusers{$page_url}{$user_name}->{count} > $cfgMinHits;
+			print OUTPUT "    <li>" . $pagesxusers{$page_url}{$user_name}->{count} . "<a href=\"#" . $user_name . "\">" . $user_name . "</a></li>\n"; 
 		}
 		print OUTPUT "	</ul>\n"; 
 		$ItemsLeft--;
@@ -855,28 +857,28 @@ foreach $site_url ( sort ($SortMethod keys (%sites) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="sitesxusers-size">Top $cfgNumberToShow Sites/Users by Size</a></h1>
+	<h1><a name="pagesxusers-size">Top $cfgNumberToShow Pages/Users by Size</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites/users sorted by size.
+# Iterate through pages/users sorted by size.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_size_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_size_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		next unless ($sites{$site_url}->{size} > $cfgMinSize);
-		print OUTPUT "  <li>" . format_size($sites{$site_url}->{size}) . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+		next unless ($pages{$page_url}->{size} > $cfgMinSize);
+		print OUTPUT "  <li>" . format_size($pages{$page_url}->{size}) . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 		print OUTPUT "	<ul>\n"; 
 
-		foreach $user_name ( sort ( { $sitesxusers{$site_url}{$b}->{size} <=> $sitesxusers{$site_url}{$a}->{size} || $a cmp $b} keys ( %{ $sitesxusers{$site_url} } ) ) )
+		foreach $user_name ( sort ( { $pagesxusers{$page_url}{$b}->{size} <=> $pagesxusers{$page_url}{$a}->{size} || $a cmp $b} keys ( %{ $pagesxusers{$page_url} } ) ) )
 		{
-			next unless $sitesxusers{$site_url}{$user_name}->{size} > $cfgMinSize;
-			print OUTPUT "    <li>" . format_size($sitesxusers{$site_url}{$user_name}->{size}) . "<a href=\"#" . $user_name . "\">" . $user_name . "</a></li>\n"; 
+			next unless $pagesxusers{$page_url}{$user_name}->{size} > $cfgMinSize;
+			print OUTPUT "    <li>" . format_size($pagesxusers{$page_url}{$user_name}->{size}) . "<a href=\"#" . $user_name . "\">" . $user_name . "</a></li>\n"; 
 		}
 		print OUTPUT "	</ul>\n"; 
 		$ItemsLeft--;
@@ -885,28 +887,28 @@ foreach $site_url ( sort ($SortMethod keys (%sites) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="sitesxhosts-hits">Top $cfgNumberToShow Sites/Hosts (IPs) by Visits</a></h1>
+	<h1><a name="pagesxhosts-hits">Top $cfgNumberToShow Pages/Hosts (IPs) by Visits</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites/hosts sorted by visits.
+# Iterate through pages/hosts sorted by visits.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_visits_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_visits_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		next unless ($sites{$site_url}->{count} > $cfgMinHits);
-		print OUTPUT "	<li>" . $sites{$site_url}->{count} . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+		next unless ($pages{$page_url}->{count} > $cfgMinHits);
+		print OUTPUT "	<li>" . $pages{$page_url}->{count} . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 		print OUTPUT "	<ul>\n"; 
 
-		foreach $ip ( sort ( { $sitesxhosts{$site_url}{$b}->{count} <=> $sitesxhosts{$site_url}{$a}->{count} || $a cmp $b} keys ( %{ $sitesxhosts{$site_url} } ) ) )
+		foreach $ip ( sort ( { $pagesxhosts{$page_url}{$b}->{count} <=> $pagesxhosts{$page_url}{$a}->{count} || $a cmp $b} keys ( %{ $pagesxhosts{$page_url} } ) ) )
 		{
-			next unless $sitesxhosts{$site_url}{$ip}->{count} > $cfgMinHits;
-			print OUTPUT "    <li>" . $sitesxhosts{$site_url}{$ip}->{count} . "<a href=\"#" . $ip . "\">" . $ip . "</a></li>\n"; 
+			next unless $pagesxhosts{$page_url}{$ip}->{count} > $cfgMinHits;
+			print OUTPUT "    <li>" . $pagesxhosts{$page_url}{$ip}->{count} . "<a href=\"#" . $ip . "\">" . $ip . "</a></li>\n"; 
 		}
 		print OUTPUT "	</ul>\n"; 
 		$ItemsLeft--;
@@ -915,28 +917,28 @@ foreach $site_url ( sort ($SortMethod keys (%sites) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="sitesxhosts-size">Top $cfgNumberToShow Sites/Hosts (IPs) by Size</a></h1>
+	<h1><a name="pagesxhosts-size">Top $cfgNumberToShow Pages/Hosts (IPs) by Size</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites/hosts sorted by size.
+# Iterate through pages/hosts sorted by size.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_size_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_size_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		next unless ($sites{$site_url}->{size} > $cfgMinSize);
-		print OUTPUT "  <li>" . format_size($sites{$site_url}->{size}) . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+		next unless ($pages{$page_url}->{size} > $cfgMinSize);
+		print OUTPUT "  <li>" . format_size($pages{$page_url}->{size}) . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 		print OUTPUT "	<ul>\n"; 
 
-		foreach $ip ( sort ( { $sitesxhosts{$site_url}{$b}->{size} <=> $sitesxhosts{$site_url}{$a}->{size} || $a cmp $b} keys ( %{ $sitesxhosts{$site_url} } ) ) )
+		foreach $ip ( sort ( { $pagesxhosts{$page_url}{$b}->{size} <=> $pagesxhosts{$page_url}{$a}->{size} || $a cmp $b} keys ( %{ $pagesxhosts{$page_url} } ) ) )
 		{
-			next unless $sitesxhosts{$site_url}{$ip}->{size} > $cfgMinSize;
-			print OUTPUT "    <li>" . format_size($sitesxhosts{$site_url}{$ip}->{size}) . "<a href=\"#" . $ip . "\">" . $ip . "</a></li>\n"; 
+			next unless $pagesxhosts{$page_url}{$ip}->{size} > $cfgMinSize;
+			print OUTPUT "    <li>" . format_size($pagesxhosts{$page_url}{$ip}->{size}) . "<a href=\"#" . $ip . "\">" . $ip . "</a></li>\n"; 
 		}
 		print OUTPUT "	</ul>\n"; 
 		$ItemsLeft--;
@@ -945,28 +947,28 @@ foreach $site_url ( sort ($SortMethod keys (%sites) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="sitesxcodes-hits">Top $cfgNumberToShow Sites/Codes by Visits</a></h1>
+	<h1><a name="pagesxcodes-hits">Top $cfgNumberToShow Pages/Codes by Visits</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites/codes sorted by visits.
+# Iterate through pages/codes sorted by visits.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_visits_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_visits_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		next unless ($sites{$site_url}->{count} > $cfgMinHits);
-		print OUTPUT "	<li>" . $sites{$site_url}->{count} . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+		next unless ($pages{$page_url}->{count} > $cfgMinHits);
+		print OUTPUT "	<li>" . $pages{$page_url}->{count} . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 		print OUTPUT "	<ul>\n"; 
 
-		foreach $code ( sort ( { $sitesxcodes{$site_url}{$b}->{count} <=> $sitesxcodes{$site_url}{$a}->{count} || $a cmp $b} keys ( %{ $sitesxcodes{$site_url} } ) ) )
+		foreach $code ( sort ( { $pagesxcodes{$page_url}{$b}->{count} <=> $pagesxcodes{$page_url}{$a}->{count} || $a cmp $b} keys ( %{ $pagesxcodes{$page_url} } ) ) )
 		{
-			next unless $sitesxcodes{$site_url}{$code}->{count} > $cfgMinHits;
-			print OUTPUT "    <li>" . $sitesxcodes{$site_url}{$code}->{count} . "<a href=\"#" . $code . "\">" . $code . "</a></li>\n"; 
+			next unless $pagesxcodes{$page_url}{$code}->{count} > $cfgMinHits;
+			print OUTPUT "    <li>" . $pagesxcodes{$page_url}{$code}->{count} . "<a href=\"#" . $code . "\">" . $code . "</a></li>\n"; 
 		}
 		print OUTPUT "	</ul>\n"; 
 		$ItemsLeft--;
@@ -975,28 +977,28 @@ foreach $site_url ( sort ($SortMethod keys (%sites) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="sitesxcodes-size">Top $cfgNumberToShow Sites/Codes by Size</a></h1>
+	<h1><a name="pagesxcodes-size">Top $cfgNumberToShow Pages/Codes by Size</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through sites/codes sorted by size.
+# Iterate through pages/codes sorted by size.
 ##
 $ItemsLeft = $cfgNumberToShow;
-$SortMethod = "sites_by_size_then_name";
-foreach $site_url ( sort ($SortMethod keys (%sites) ) )
+$SortMethod = "pages_by_size_then_name";
+foreach $page_url ( sort ($SortMethod keys (%pages) ) )
 {
 	# Only show top x entries.
 	if ($ItemsLeft > 0)
 	{
-		next unless ($sites{$site_url}->{size} > $cfgMinSize);
-		print OUTPUT "  <li>" . format_size($sites{$site_url}->{size}) . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+		next unless ($pages{$page_url}->{size} > $cfgMinSize);
+		print OUTPUT "  <li>" . format_size($pages{$page_url}->{size}) . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 		print OUTPUT "	<ul>\n"; 
 
-		foreach $code ( sort ( { $sitesxcodes{$site_url}{$b}->{size} <=> $sitesxcodes{$site_url}{$a}->{size} || $a cmp $b} keys ( %{ $sitesxcodes{$site_url} } ) ) )
+		foreach $code ( sort ( { $pagesxcodes{$page_url}{$b}->{size} <=> $pagesxcodes{$page_url}{$a}->{size} || $a cmp $b} keys ( %{ $pagesxcodes{$page_url} } ) ) )
 		{
-			next unless $sitesxcodes{$site_url}{$code}->{size} > $cfgMinSize;
-			print OUTPUT "    <li>" . format_size($sitesxcodes{$site_url}{$code}->{size}) . "<a href=\"#" . $code . "\">" . $code . "</a></li>\n"; 
+			next unless $pagesxcodes{$page_url}{$code}->{size} > $cfgMinSize;
+			print OUTPUT "    <li>" . format_size($pagesxcodes{$page_url}{$code}->{size}) . "<a href=\"#" . $code . "\">" . $code . "</a></li>\n"; 
 		}
 		print OUTPUT "	</ul>\n"; 
 		$ItemsLeft--;
@@ -1005,12 +1007,12 @@ foreach $site_url ( sort ($SortMethod keys (%sites) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="usersxsites-hits">Top Users/Sites by Visits</a></h1>
+	<h1><a name="usersxpages-hits">Top Users/Pages by Visits</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through users/sites sorted by visits.
+# Iterate through users/pages sorted by visits.
 ##
 $SortMethod = "users_by_visits_then_name";
 foreach $user_name ( sort ($SortMethod keys (%users) ) )
@@ -1020,13 +1022,13 @@ foreach $user_name ( sort ($SortMethod keys (%users) ) )
 	print OUTPUT "	<ul>\n"; 
 
 	$SubItemsLeft = $cfgNumberToShow;
-	foreach $site_url ( sort ( { $usersxsites{$user_name}{$b}->{count} <=> $usersxsites{$user_name}{$a}->{count} || $a cmp $b } keys ( %{ $usersxsites{$user_name} } ) ) )
+	foreach $page_url ( sort ( { $usersxpages{$user_name}{$b}->{count} <=> $usersxpages{$user_name}{$a}->{count} || $a cmp $b } keys ( %{ $usersxpages{$user_name} } ) ) )
 	{
 		# Only show top x entries.
 		if ($SubItemsLeft > 0)
 		{
-			next unless $usersxsites{$user_name}{$site_url}->{count} > $cfgMinHits;
-			print OUTPUT "	  <li>" . $usersxsites{$user_name}{$site_url}->{count} . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+			next unless $usersxpages{$user_name}{$page_url}->{count} > $cfgMinHits;
+			print OUTPUT "	  <li>" . $usersxpages{$user_name}{$page_url}->{count} . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 			$SubItemsLeft--;
 		}
 	}
@@ -1036,12 +1038,12 @@ foreach $user_name ( sort ($SortMethod keys (%users) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="usersxsites-size">Top Users/Sites by Size</a></h1>
+	<h1><a name="usersxpages-size">Top Users/Pages by Size</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through users/sites sorted by size.
+# Iterate through users/pages sorted by size.
 ##
 $SortMethod = "users_by_size_then_name";
 foreach $user_name ( sort ($SortMethod keys (%users) ) )
@@ -1051,13 +1053,13 @@ foreach $user_name ( sort ($SortMethod keys (%users) ) )
 	print OUTPUT "	<ul>\n"; 
 
 	$SubItemsLeft = $cfgNumberToShow;
-	foreach $site_url ( sort ( { $usersxsites{$user_name}{$b}->{size} <=> $usersxsites{$user_name}{$a}->{size} || $a cmp $b } keys ( %{ $usersxsites{$user_name} } ) ) )
+	foreach $page_url ( sort ( { $usersxpages{$user_name}{$b}->{size} <=> $usersxpages{$user_name}{$a}->{size} || $a cmp $b } keys ( %{ $usersxpages{$user_name} } ) ) )
 	{
 		# Only show top x entries.
 		if ($SubItemsLeft > 0)
 		{
-			next unless $usersxsites{$user_name}{$site_url}->{size} > $cfgMinSize;
-			print OUTPUT "    <li>" . format_size($usersxsites{$user_name}{$site_url}->{size}) . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a> (". $usersxsites{$user_name}{$site_url}->{count} .")</li>\n";
+			next unless $usersxpages{$user_name}{$page_url}->{size} > $cfgMinSize;
+			print OUTPUT "    <li>" . format_size($usersxpages{$user_name}{$page_url}->{size}) . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a> (". $usersxpages{$user_name}{$page_url}->{count} .")</li>\n";
 			$SubItemsLeft--;
 		}
 	}
@@ -1095,7 +1097,7 @@ print OUTPUT <<END;
 END
 
 ##
-# Iterate through users/sites sorted by size.
+# Iterate through users/pages sorted by size.
 ##
 $SortMethod = "users_by_size_then_name";
 foreach $user_name ( sort ($SortMethod keys (%users) ) )
@@ -1115,12 +1117,12 @@ foreach $user_name ( sort ($SortMethod keys (%users) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="hostsxsites-hits">Top $cfgNumberToShow Hosts (IPs)/Sites by Visits</a></h1>
+	<h1><a name="hostsxpages-hits">Top $cfgNumberToShow Hosts (IPs)/Pages by Visits</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through hosts/sites sorted by visits.
+# Iterate through hosts/pages sorted by visits.
 ##
 $ItemsLeft = $cfgNumberToShow;
 $SortMethod = "hosts_by_visits_then_name";
@@ -1134,13 +1136,13 @@ foreach $host_ip ( sort ($SortMethod keys (%hosts) ) )
 		print OUTPUT "	<ul>\n"; 
 
 		$SubItemsLeft = $cfgNumberToShow;
-		foreach $site_url ( sort ( { $hostsxsites{$host_ip}{$b}->{count} <=> $hostsxsites{$host_ip}{$a}->{count} || $a cmp $b } keys ( %{ $hostsxsites{$host_ip} } ) ) )
+		foreach $page_url ( sort ( { $hostsxpages{$host_ip}{$b}->{count} <=> $hostsxpages{$host_ip}{$a}->{count} || $a cmp $b } keys ( %{ $hostsxpages{$host_ip} } ) ) )
 		{
 			# Only show top x entries.
 			if ($SubItemsLeft > 0)
 			{
-				next unless $hostsxsites{$host_ip}{$site_url}->{count} > $cfgMinHits;
-				print OUTPUT "	  <li>" . $hostsxsites{$host_ip}{$site_url}->{count} . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+				next unless $hostsxpages{$host_ip}{$page_url}->{count} > $cfgMinHits;
+				print OUTPUT "	  <li>" . $hostsxpages{$host_ip}{$page_url}->{count} . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 				$SubItemsLeft--;
 			}
 		}
@@ -1151,12 +1153,12 @@ foreach $host_ip ( sort ($SortMethod keys (%hosts) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="hostsxsites-size">Top $cfgNumberToShow Hosts (IPs)/Sites by Size</a></h1>
+	<h1><a name="hostsxpages-size">Top $cfgNumberToShow Hosts (IPs)/Pages by Size</a></h1>
 	<ul>
 END
 
 ##
-# Iterate through hosts/sites sorted by size.
+# Iterate through hosts/pages sorted by size.
 ##
 $ItemsLeft = $cfgNumberToShow;
 $SortMethod = "hosts_by_size_then_name";
@@ -1170,13 +1172,13 @@ foreach $host_ip ( sort ($SortMethod keys (%hosts) ) )
 		print OUTPUT "	<ul>\n"; 
 
 		$SubItemsLeft = $cfgNumberToShow;
-		foreach $site_url ( sort ( { $hostsxsites{$host_ip}{$b}->{size} <=> $hostsxsites{$host_ip}{$a}->{size} || $a cmp $b } keys ( %{ $hostsxsites{$host_ip} } ) ) )
+		foreach $page_url ( sort ( { $hostsxpages{$host_ip}{$b}->{size} <=> $hostsxpages{$host_ip}{$a}->{size} || $a cmp $b } keys ( %{ $hostsxpages{$host_ip} } ) ) )
 		{
 			# Only show top x entries.
 			if ($SubItemsLeft > 0)
 			{
-				next unless $hostsxsites{$host_ip}{$site_url}->{size} > $cfgMinSize;
-				print OUTPUT "     <li>" . format_size($hostsxsites{$host_ip}{$site_url}->{size}) . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a> (". $hostsxsites{$host_ip}{$site_url}->{count} .")</li>\n";
+				next unless $hostsxpages{$host_ip}{$page_url}->{size} > $cfgMinSize;
+				print OUTPUT "     <li>" . format_size($hostsxpages{$host_ip}{$page_url}->{size}) . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a> (". $hostsxpages{$host_ip}{$page_url}->{count} .")</li>\n";
 				$SubItemsLeft--;
 			}
 		}
@@ -1247,7 +1249,7 @@ foreach $host_ip ( sort ($SortMethod keys (%hosts) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="codesxsites-hits">Top $cfgNumberToShow HTTP Codes/Sites by Visits</a></h1>
+	<h1><a name="codesxpages-hits">Top $cfgNumberToShow HTTP Codes/Pages by Visits</a></h1>
 	<ul>
 END
 
@@ -1266,13 +1268,13 @@ foreach $code ( sort ($SortMethod keys (%codes) ) )
 		print OUTPUT "	<ul>\n"; 
 
 		$SubItemsLeft = $cfgNumberToShow;
-		foreach $site_url ( sort ( { $codesxsites{$code}{$b}->{count} <=> $codesxsites{$code}{$a}->{count} || $a cmp $b } keys ( %{ $codesxsites{$code} } ) ) )
+		foreach $page_url ( sort ( { $codesxpages{$code}{$b}->{count} <=> $codesxpages{$code}{$a}->{count} || $a cmp $b } keys ( %{ $codesxpages{$code} } ) ) )
 		{
 			# Only show top x entries.
 			if ($SubItemsLeft > 0)
 			{
-				next unless $codesxsites{$code}{$site_url}->{count} > $cfgMinHits;
-				print OUTPUT "	  <li>" . $codesxsites{$code}{$site_url}->{count} . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n";
+				next unless $codesxpages{$code}{$page_url}->{count} > $cfgMinHits;
+				print OUTPUT "	  <li>" . $codesxpages{$code}{$page_url}->{count} . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n";
 				$SubItemsLeft--;
 			}
 		}
@@ -1283,7 +1285,7 @@ foreach $code ( sort ($SortMethod keys (%codes) ) )
 
 print OUTPUT <<END;
 	</ul>
-	<h1><a name="codesxsites-size">Top $cfgNumberToShow HTTP Codes/Sites by Size</a></h1>
+	<h1><a name="codesxpages-size">Top $cfgNumberToShow HTTP Codes/Pages by Size</a></h1>
 	<ul>
 END
 
@@ -1302,13 +1304,13 @@ foreach $code ( sort ($SortMethod keys (%codes) ) )
 		print OUTPUT "	<ul>\n"; 
 
 		$SubItemsLeft = $cfgNumberToShow;
-		foreach $site_url ( sort ( { $codesxsites{$code}{$b}->{size} <=> $codesxsites{$code}{$a}->{size} || $a cmp $b } keys ( %{ $codesxsites{$code} } ) ) )
+		foreach $page_url ( sort ( { $codesxpages{$code}{$b}->{size} <=> $codesxpages{$code}{$a}->{size} || $a cmp $b } keys ( %{ $codesxpages{$code} } ) ) )
 		{
 			# Only show top x entries.
 			if ($SubItemsLeft > 0)
 			{
-				next unless $codesxsites{$code}{$site_url}->{size} > $cfgMinSize;
-				print OUTPUT "    <li>" . format_size($codesxsites{$code}{$site_url}->{size}) . "<a href=\"http://" . $site_url . "/\">" . $site_url . "</a></li>\n"; 
+				next unless $codesxpages{$code}{$page_url}->{size} > $cfgMinSize;
+				print OUTPUT "    <li>" . format_size($codesxpages{$code}{$page_url}->{size}) . "<a href=\"http://" . $page_url . "/\">" . $page_url . "</a></li>\n"; 
 				$SubItemsLeft--;
 			}
 		}
@@ -1575,10 +1577,10 @@ $run_time = $end_run - $start_run;
 print "report creation took $run_time seconds\n";
 
 ##
-# Sort sites by frequency visited, then alphabetically.
+# Sort pages by frequency vipaged, then alphabetically.
 ##
-sub sites_by_visits_then_name {
-	$sites{$b}->{count} <=> $sites{$a}->{count} 
+sub pages_by_visits_then_name {
+	$pages{$b}->{count} <=> $pages{$a}->{count} 
 		||
 	$a cmp $b
 }
@@ -1586,14 +1588,14 @@ sub sites_by_visits_then_name {
 ##
 # Sort by size, then alphabetically.
 ##
-sub sites_by_size_then_name {
-        $sites{$b}->{size} <=> $sites{$a}->{size}
+sub pages_by_size_then_name {
+        $pages{$b}->{size} <=> $pages{$a}->{size}
                 ||
         $a cmp $b
 }
 
 ##
-# Sort users by frequency visited, then alphabetically.
+# Sort users by frequency vipaged, then alphabetically.
 ##
 sub users_by_visits_then_name {
 	$users{$b}->{count} <=> $users{$a}->{count} 
@@ -1611,7 +1613,7 @@ sub users_by_size_then_name {
 }
 
 ##
-# Sort hosts by frequency visited, then alphabetically.
+# Sort hosts by frequency vipaged, then alphabetically.
 ##
 sub hosts_by_visits_then_name {
 	$hosts{$b}->{count} <=> $hosts{$a}->{count} 
@@ -1629,7 +1631,7 @@ sub hosts_by_size_then_name {
 }
 
 ##
-# Sort codes by frequency visited, then alphabetically.
+# Sort codes by frequency vipaged, then alphabetically.
 ##
 sub codes_by_visits_then_name {
 	$codes{$b}->{count} <=> $codes{$a}->{count} 
@@ -1647,7 +1649,7 @@ sub codes_by_size_then_name {
 }
 
 ##
-# Sort verbs by frequency visited, then alphabetically.
+# Sort verbs by frequency vipaged, then alphabetically.
 ##
 sub verbs_by_visits_then_name {
 	$methods{$b}->{count} <=> $methods{$a}->{count} 
@@ -1664,7 +1666,7 @@ sub verbs_by_size_then_name {
 }
 
 ##
-# Sort types by frequency visited, then alphabetically.
+# Sort types by frequency vipaged, then alphabetically.
 ##
 sub types_by_visits_then_name {
 	$types{$b}->{count} <=> $types{$a}->{count} 
@@ -1727,9 +1729,9 @@ report containing:
 
 =over 2
 
-=item * Top Sites by Visits
+=item * Top Pages by Visits
 
-=item * Top Sites by Size
+=item * Top Pages by Size
 
 =item * Top Users by Visits
 
@@ -1751,37 +1753,37 @@ report containing:
 
 =item * Top Types by Size
 
-=item * Top Sites/Users by Visits
+=item * Top Pages/Users by Visits
 
-=item * Top Sites/Users by Size
+=item * Top Pages/Users by Size
 
-=item * Top Sites/Hosts by Visits
+=item * Top Pages/Hosts by Visits
 
-=item * Top Sites/Hosts by Size
+=item * Top Pages/Hosts by Size
 
-=item * Top Sites/Codes by Visits
+=item * Top Pages/Codes by Visits
 
-=item * Top Sites/Codes by Size
+=item * Top Pages/Codes by Size
 
-=item * Top Users/Sites by Visits
+=item * Top Users/Pages by Visits
 
-=item * Top Users/Sites by Size
+=item * Top Users/Pages by Size
 
 =item * Top Users/Codes by Visits
 
 =item * Top Users/Codes by Size
 
-=item * Top Hosts/Sites by Visits
+=item * Top Hosts/Pages by Visits
 
-=item * Top Hosts/Sites by Size
+=item * Top Hosts/Pages by Size
 
 =item * Top Hosts/Codes by Visits
 
 =item * Top Hosts/Codes by Size
 
-=item * Top Codes/Sites by Visits
+=item * Top Codes/Pages by Visits
 
-=item * Top Codes/Sites by Size
+=item * Top Codes/Pages by Size
 
 =item * Top Codes/Users by Visits
 
@@ -1819,15 +1821,15 @@ The file name of the report (defaults to logsdir.html).
 
 =item winroute-report trazas
 
-Parses log files in folder trazas and writes out the report to file trazas.thml including top 100 sites by default.
+Parses log files in folder trazas and writes out the report to file trazas.thml including top 100 pages by default.
 
 =item winroute-report trazas 50 report.html 
 
-Parses log files in folder trazas and writes out the report to file report.thml including top 50 sites as specified.
+Parses log files in folder trazas and writes out the report to file report.thml including top 50 pages as specified.
 
 =item winroute-report trazas 20 
 
-Parses log files in folder trazas and writes out the report to file trazas.thml including top 20 sites as specified.
+Parses log files in folder trazas and writes out the report to file trazas.thml including top 20 pages as specified.
 
 =back
 
