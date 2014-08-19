@@ -1839,7 +1839,7 @@ This script requires the C<strict> module.
 
 =head1 AUTHORS
 
-Badly hacked out by Camilo E. Hidalgo Estevez C<(camiloeh@gmail.com)>>. 
+Badly hacked out by Camilo Ernesto Hidalgo Estevez C<(camilohe@gmail.com)>>. 
 Based on previous work by:
 
 =over 2
