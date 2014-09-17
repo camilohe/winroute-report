@@ -4,4 +4,5 @@ perl:
   - "5.18"
   - "5.16"
   - "5.14"
-  
+# skip installing dependencies to avoid 'cpanm --quiet --installdeps --notest .' failure
+install: true
