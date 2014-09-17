@@ -1,11 +1,13 @@
 NAME
-    winroute-report.pl -- version? who knows or care!
+----
+winroute-report.pl -- version? who knows or care!
 
 [![Build Status](https://travis-ci.org/camilohe/winroute-report.svg?branch=master)](https://travis-ci.org/camilohe/winroute-report)
 
 DESCRIPTION
-    Processes winroute logs from a given folder and writes out an HTML file
-    with a report containing:
+-----------
+Processes winroute logs from a given folder and writes out an HTML file
+with a report containing:
 
     * Top Sites by Visits
     * Top Sites by Size
@@ -39,6 +41,7 @@ DESCRIPTION
     * Top Codes/Hosts by Size
 
 USAGE
+-----
     winroute-report <logdir> [[N] reportfile]
 
     * logdir
@@ -51,6 +54,7 @@ USAGE
       The file name of the report (defaults to logsdir.html).
 
 SAMPLES
+-------
     winroute-report trazas
       Parses log files in folder trazas and writes out the report to file
       trazas.thml including top 100 sites by default.
@@ -64,20 +68,24 @@ SAMPLES
       trazas.thml including top 20 sites as specified.
 
 PREREQUISITES
-    This script requires the "strict" module.
+-------------
+This script requires the "strict" module.
 
 AUTHORS
-    Badly hacked out by Camilo E. Hidalgo Estevez <camiloeh@gmail.com>.
-    Based on previous work by:
+-------
+Badly hacked out by Camilo E. Hidalgo Estevez <camiloeh@gmail.com>.
+
+Based on previous work by:
 
     Dave Hope <http://davehope.co.uk/projects/perl-squid-reporting/>.
     Sava Chankov <http://backpan.perl.org/authors/id/S/SA/SAVA>.
 
 NOTES
-    If you got time and want some fun!?, set the variable $debug to some
-    number from 0 to 9.
+-----
+If you got time and want some fun!?, set the variable $debug to some
+number from 0 to 9.
 
-    And here you have a sample line from the winroute log for reference:
+And here you have a sample line from the winroute log for reference:
 
     192.168.206.15 - Admin [16/Feb/2011:17:19:57 -0500] "GET http://z.about.com/6/g/ruby/b/rss2.xml HTTP/1.1" 200 10870 +3
 
