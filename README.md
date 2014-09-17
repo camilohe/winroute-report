@@ -1,6 +1,8 @@
 NAME
     winroute-report.pl -- version? who knows or care!
 
+[![Build Status](https://travis-ci.org/camilohe/winroute-report.svg?branch=master)](https://travis-ci.org/camilohe/winroute-report)
+
 DESCRIPTION
     Processes winroute logs from a given folder and writes out an HTML file
     with a report containing:
