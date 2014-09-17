@@ -1811,7 +1811,7 @@ The number of top items to show (defaults to 100)
 
 =item * reportfile
 
-The file name of the report (defaults to logsdir.html).
+The file name of the report (defaults to logdir.html).
 
 =back
 
