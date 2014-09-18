@@ -1,7 +1,11 @@
-all: true
+all: 
+	true
 
-test:true
+test:
+	true
 
-install: true
+install: 
+	true
 
-clean: true
+clean: 
+	true
